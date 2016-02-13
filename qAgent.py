@@ -28,7 +28,6 @@ class State:
 		self.fire = fire1
 		self.target = target
 		
-
 	def __str__(self):
 		return "({0},{1},{2},{3})".format(self.base,self.arm,self.fire,self.target)
 
@@ -116,22 +115,25 @@ class QTable:
 				if row[1]==state.arm:
 					if row[2]==state.fire:
 						if row[3]==state.target:
-							qvalues.append(row[5])
+							qvalues.append([row[4],row[5]])
 		if len(qvalues)==0:
 			print 'ERROR: In getQActionPairs Table entry not Found.'
 		return qvalues			 
 
 	def getMaxQ(self,state):
-		qvalues = self.getQActionPairs(state)
-		if(len(qvalues)>0):
-			print max(qvalues)
-			return max(qvalues)
+		pairs = self.getQActionPairs(state)
+		if(len(pairs)>0):
+			maxQ = pairs[0]
+			for pair in pairs:
+				if maxQ[1] < pair[1]:
+					maxQ = pair
+			return maxQ
 		else:
 			print "This case should never happen, and is only left here for debugging. Remove me before program is shipped out!"
 			return -1000	#IMPORTANT - What should be done in the case that this state has not been visited
 
 class QAgent:
-	def __init__(self,isSim1):
+	def __init__(self,isSim1,agentType):
 		self.isSim = isSim1
 		if self.isSim:
 			self.matlabEng = matlab.engine.start_matlab()
@@ -144,17 +146,25 @@ class QAgent:
 		self.r = 0
 		self.discount = 0.8	
 		self.learningRate = 0.2
+		self.personality = agentType
 		######################################################################################
 		self.initState = State(1.570796,1.570796,0,None)
 		self.qtable = QTable('QTable.csv')
 		
 		
 	def generateTarget(self):
-		#Write code to generate random targets X,Y,Z
-		self.target=1
-		self.targetRealX = 22.0
-		self.targetRealY = 13.0
-		self.targetRealZ = 20.0
+		random.seed()
+		partitionBank = [[0 ,2], [1,3]]
+		#known to work [22 13 20] x y z
+		self.targetRealX = random.uniform(0,55)
+		self.targetRealY = random.uniform(0,35)
+		self.targetRealZ = random.uniform(0,20)
+		xPartition = int(self.targetRealX / 28)
+		yPartition = int(self.targetRealY / 18)
+		print xPartition
+		print yPartition
+		self.target = partitionBank[xPartition][yPartition]
+
 		'''Map targets actual position to pixels
 		focalD = 25;
 		Projected = [1,0,0,0;0,1,0,0;0,0,-1/focalD,0]*targets(1)
@@ -175,15 +185,26 @@ class QAgent:
 		else:
 			return 0
 
+	def greedyAction(self,state):
+		return self.qtable.getMaxQ(state)[0]
+
 	#this is the average implementation.. not sure what it is called but 30% of the time it takes a random action
 	#The remaining 70% it will choose the action that maximizes the qvalue.
-	def selectAction(self):
-		random.seed()
-		rand = random.randint(0,10)
-		if rand < 3:
-			return selectRandomAction()
-		else:
-			broken
+	def selectAction(self,state):
+		if self.personality == 'curious':
+			return self.selectRandomAction()
+		elif self.personality =='greedy':
+			return self.greedyAction(state)
+		elif self.personality =='balanced':
+			random.seed()
+			rand = random.randint(0,10)
+			if rand < 3:
+				return self.selectRandomAction()
+			else:
+				return self.greedyAction(state)
+
+	
+
 
 	def executeAction(self,state, action):
 		#The move command for the physical agent should also be added
@@ -237,7 +258,7 @@ class QAgent:
 			print 'send action to Turret.py'
 
 	#targetZ is depth and only used for the simulation
-	def qLearning(self,startState='',maxIterations):
+	def qLearning(self,maxIterations,startState=''):
 		if startState=='':
 			state = self.initState
 		else:
@@ -245,36 +266,32 @@ class QAgent:
 		iterations = 0
 		while (not(state.fire) and iterations<maxIterations):
 			#select an action
-			action = self.selectRandomAction()	#there should be an exploration function or something else here but for now this is ok since the agent is far from converging on an optimal policy
+			action = self.selectAction(state)	#there should be an exploration function or something else here but for now this is ok since the agent is far from converging on an optimal policy
 			#take action observe outcome
 			nextState = self.executeAction(state,action)
 			reward = self.getReward(nextState)
 			curQ = self.qtable.getQValue(state,action)
-			maxQ = self.qtable.getMaxQ(nextState)
+			maxQ = self.qtable.getMaxQ(nextState)[1]
 			#update old q value
 			newQ = curQ + self.learningRate*(reward + self.discount*maxQ - curQ)
 			self.qtable.setQValue(state,action,newQ)
 			state = nextState
 			iterations = iterations + 1
 			print state
-			print 'Iteration '+str(iterations)
+			#print 'Iteration '+str(iterations)
 		if(state.fire):
-			print 'Target was hit in state {0}'.format(state)
+			print 'Target was hit in state {0} on iteration {1}'.format(state,iterations)
 		self.qtable.writeTable();
 
 ########################################################################################
 #	Main #
 testState = State(0.837758,1.0,0,0)
-agent = QAgent(True)
-agent.qLearning(testState,maxIterations)
+agent = QAgent(True,'curious')
+agent.qLearning(100,testState)
 
 #TO DO
 '''
-The simluated target X,Y location function needs to be created
-Generating the Real target position should also be created
 implement exploration function
-implement writeTable
-rename getQValue and setQValue to getQValue setqvalue
 put qtable in a diffrent file, should change the data structure eventually
 
 BEGIN TESTING!!!!!!
