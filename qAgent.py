@@ -73,9 +73,7 @@ class QTable:
 								return row[5]
 		print 'ERROR: In getQValue Table entry not found.'
 		
-
 	def setQValue(self,state,action1,newReward):
-		#print 'In set Reward'
 		for row in self.qtable:
 			if row[0]==state.base:
 				if row[1]==state.arm:
@@ -148,7 +146,7 @@ class QAgent:
 		self.learningRate = 0.2
 		self.personality = agentType
 		######################################################################################
-		self.initState = State(1.570796,1.570796,0,None)
+		self.initState = State(1.570796,1.570796,0,self.target)
 		self.qtable = QTable('QTable.csv')
 		
 		
@@ -161,10 +159,9 @@ class QAgent:
 		self.targetRealZ = random.uniform(0,20)
 		xPartition = int(self.targetRealX / 28)
 		yPartition = int(self.targetRealY / 18)
-		print xPartition
-		print yPartition
+		print 'Target: {0} {1} {2}'.format(self.targetRealX,self.targetRealY,self.targetRealZ)
 		self.target = partitionBank[xPartition][yPartition]
-
+		print self.target
 		'''Map targets actual position to pixels
 		focalD = 25;
 		Projected = [1,0,0,0;0,1,0,0;0,0,-1/focalD,0]*targets(1)
@@ -285,13 +282,12 @@ class QAgent:
 
 ########################################################################################
 #	Main #
-testState = State(0.837758,1.0,0,0)
+
 agent = QAgent(True,'curious')
-agent.qLearning(100,testState)
+agent.qLearning(100)
 
 #TO DO
 '''
-implement exploration function
 put qtable in a diffrent file, should change the data structure eventually
 
 BEGIN TESTING!!!!!!
