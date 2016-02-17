@@ -103,5 +103,5 @@ class SSC32:
     #   Close the port
     self.ssc32.close();
 
-test = SSC32()
-test.run()
+# test = SSC32()
+#test.run()

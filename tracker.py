@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 import copy
-import workingPort.py
+import workingPort
 
 #originally 20
 SENSITIVITY = 30
@@ -41,9 +41,9 @@ def main():
 
     camera = cv2.VideoCapture(0)
     print camera.isOpened()
-    if not camera.isOpened():
-        print "Error Establishing Video Feed!"
-        return -1
+    # if not camera.isOpened():
+    #     print "Error Establishing Video Feed!"
+    #     return -1
         
     while(True):
         (acquiered,frame1) = camera.read()
