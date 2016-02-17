@@ -69,7 +69,6 @@ class QTable:
 					if row[2]==state.fire:
 						if row[3]==state.target:
 							if row[4]==action1:
-								print row[5]
 								return row[5]
 		print 'ERROR: In getQValue Table entry not found.'
 		
@@ -125,13 +124,16 @@ class QTable:
 			for pair in pairs:
 				if maxQ[1] < pair[1]:
 					maxQ = pair
+			#Note that maxQ is the tuple (state, action)
 			return maxQ
 		else:
 			print "This case should never happen, and is only left here for debugging. Remove me before program is shipped out!"
 			return -1000	#IMPORTANT - What should be done in the case that this state has not been visited
 
+#############################################################################################
 class QAgent:
 	def __init__(self,isSim1,agentType):
+		self.qtable = QTable('QTable.csv')
 		self.isSim = isSim1
 		if self.isSim:
 			self.matlabEng = matlab.engine.start_matlab()
@@ -139,15 +141,16 @@ class QAgent:
 			self.targetRealX = None
 			self.targetRealY = None
 			self.targetRealZ = None
-			self.generateTarget()
+			target = self.generateTarget()
+			self.initState = State(self.qtable.qtable[0][0],self.qtable.qtable[0][1],0,target)
 		#IMPORTANT - What should these values be? They determine many things about convergence
 		self.r = 0
 		self.discount = 0.8	
 		self.learningRate = 0.2
 		self.personality = agentType
 		######################################################################################
-		self.initState = State(1.570796,1.570796,0,self.target)
-		self.qtable = QTable('QTable.csv')
+		
+		
 		
 		
 	def generateTarget(self):
@@ -160,8 +163,8 @@ class QAgent:
 		xPartition = int(self.targetRealX / 28)
 		yPartition = int(self.targetRealY / 18)
 		print 'Target: {0} {1} {2}'.format(self.targetRealX,self.targetRealY,self.targetRealZ)
-		self.target = partitionBank[xPartition][yPartition]
-		print self.target
+		target = partitionBank[xPartition][yPartition]
+		return target
 		'''Map targets actual position to pixels
 		focalD = 25;
 		Projected = [1,0,0,0;0,1,0,0;0,0,-1/focalD,0]*targets(1)
@@ -262,20 +265,19 @@ class QAgent:
 			state = startState
 		iterations = 0
 		while (not(state.fire) and iterations<maxIterations):
-			#select an action
-			action = self.selectAction(state)	#there should be an exploration function or something else here but for now this is ok since the agent is far from converging on an optimal policy
+			action = self.selectAction(state)	#see function for exploration schemes
 			#take action observe outcome
+			print 'In state: {0}\nTook action: {1}'.format(state,action)
 			nextState = self.executeAction(state,action)
 			reward = self.getReward(nextState)
 			curQ = self.qtable.getQValue(state,action)
-			maxQ = self.qtable.getMaxQ(nextState)[1]
+			(maxQAction,maxQ) = self.qtable.getMaxQ(nextState)
 			#update old q value
 			newQ = curQ + self.learningRate*(reward + self.discount*maxQ - curQ)
 			self.qtable.setQValue(state,action,newQ)
 			state = nextState
 			iterations = iterations + 1
-			print state
-			#print 'Iteration '+str(iterations)
+			
 		if(state.fire):
 			print 'Target was hit in state {0} on iteration {1}'.format(state,iterations)
 		self.qtable.writeTable();
