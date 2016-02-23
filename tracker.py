@@ -39,7 +39,7 @@ def main():
     detected = False
     debug = False
 
-    camera = cv2.VideoCapture(0)
+    camera = cv2.VideoCapture(1)
     print camera.isOpened()
     # if not camera.isOpened():
     #     print "Error Establishing Video Feed!"
