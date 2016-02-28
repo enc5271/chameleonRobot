@@ -1,9 +1,12 @@
 import csv
-import matlab.engine
 import random
 import copy
 from collections import defaultdict
 import math
+
+#import detectCollision
+import workingPort as ssc
+import colorTracking
 
 #ACTION_BANK = ['base_10', 'base_-10', 'arm_10', 'arm_-10', 'fire']
 ACTION_BANK = ['left', 'right', 'up', 'down', 'fire']
@@ -135,14 +138,17 @@ class QAgent:
 	def __init__(self,isSim1,agentType):
 		self.qtable = QTable('QTable.csv')
 		self.isSim = isSim1
+		self.initState = State(self.qtable.qtable[0][0],self.qtable.qtable[0][1],0,0)
 		if self.isSim:
-			self.matlabEng = matlab.engine.start_matlab()
+			#self.matlabEng = matlab.engine.start_matlab()
 			#Matlab requires the 'physical' location of the target
 			self.targetRealX = None
 			self.targetRealY = None
 			self.targetRealZ = None
 			target = self.generateTarget()
-			self.initState = State(self.qtable.qtable[0][0],self.qtable.qtable[0][1],0,target)
+		else:
+			self.ssc32 = ssc.SSC32()
+			
 		#IMPORTANT - What should these values be? They determine many things about convergence
 		self.r = 0
 		self.discount = 0.8	
@@ -203,59 +209,77 @@ class QAgent:
 			else:
 				return self.greedyAction(state)
 
-	
+	def executeVirtualAction(self,state,action):
+		success = 0
+		newState = copy.copy(state)
+		action = action.split('_') #check that this remove the under score and returns the action descriptor and degrees
+		if action[0] == 'base':
+			angleChange = float(action[1])
+			newAngle = (state.base + angleChange)
+			if BASE_MIN  <= newAngle <= BASE_MAX:
+				newState.base = newAngle
 
+		elif action[0] =='arm':
+			angleChange = float(action[1])
+			newAngle = (state.arm + angleChange)
+			if ARM_MIN  <= newAngle <= ARM_MAX:
+				newState.arm = newAngle
+		elif action[0] == 'fire':
+			if self.isHit(state):
+				#The target was hit
+				newState.fire= 1 	
+			else:
+				#missed the target
+				newState.fire = 0 	
+		elif action[0]=='up':
+			if state.arm == ARM_MAX:
+				newState.arm =newState.arm
+			elif state.arm < ARM_MAX:
+				newState.arm = ARM_MAX 
+		elif action[0]=='down':
+			if state.arm == ARM_MIN:
+				newState.arm =newState.arm
+			elif state.arm > ARM_MIN:
+				newState.arm = ARM_MIN 
+		elif action[0]=='left':
+			if state.base == BASE_MIN:
+				newState.base =newState.base
+			elif state.base > BASE_MIN:
+				newState.base = BASE_MIN 
+		elif action[0]=='right':
+			if state.base == BASE_MAX:
+				newState.base =newState.base
+			elif state.base < BASE_MAX:
+				newState.base = BASE_MAX 
+		else:
+			print 'ERROR: Action not found.'
+			return
+		return newState
+
+	def getSSC32Command(self,state,action):
+
+
+	def executePhysicalAction(state,action):
+		newState = copy.copy(state)
+		#Not sure if I should get the state from software or query the servo controller
+		newState = self.executeVirtualAction(newState)
+		if(action== 'fire'):
+			self.ssc32.executeSingleCommand('#7H')
+			sleep(1)
+			self.ssc32.executeSingleCommand('#7L')
+		else:
+			command = self.getSSC32Command(newState)
+			self.ssc32.executeSingleCommand(command)
+		return newState
 
 	def executeAction(self,state, action):
 		#The move command for the physical agent should also be added
-		newState = copy.copy(state)
-		success = 0
-		if self.isSim:
-			action = action.split('_') #check that this remove the under score and returns the action descriptor and degrees
-			if action[0] == 'base':
-				angleChange = float(action[1])
-				newAngle = (state.base + angleChange)
-				if BASE_MIN  <= newAngle <= BASE_MAX:
-					newState.base = newAngle
-
-			elif action[0] =='arm':
-				angleChange = float(action[1])
-				newAngle = (state.arm + angleChange)
-				if ARM_MIN  <= newAngle <= ARM_MAX:
-					newState.arm = newAngle
-			elif action[0] == 'fire':
-				if self.isHit(state):
-					#The target was hit
-					newState.fire= 1 	
-				else:
-					#missed the target
-					newState.fire = 0 	
-			elif action[0]=='up':
-				if state.arm == ARM_MAX:
-					newState.arm =newState.arm
-				elif state.arm < ARM_MAX:
-					newState.arm = ARM_MAX 
-			elif action[0]=='down':
-				if state.arm == ARM_MIN:
-					newState.arm =newState.arm
-				elif state.arm > ARM_MIN:
-					newState.arm = ARM_MIN 
-			elif action[0]=='left':
-				if state.base == BASE_MIN:
-					newState.base =newState.base
-				elif state.base > BASE_MIN:
-					newState.base = BASE_MIN 
-			elif action[0]=='right':
-				if state.base == BASE_MAX:
-					newState.base =newState.base
-				elif state.base < BASE_MAX:
-					newState.base = BASE_MAX 
-			else:
-				print 'ERROR: Action not found.'
-				return
-			return newState
+		
+		if self.isSim == 1:
+			return executeVirtualAction(state,action)
+		
 		else:
-			print 'send action to Turret.py'
+			return executePhysicalAction(state,action)
 
 	#targetZ is depth and only used for the simulation
 	def qLearning(self,maxIterations,startState=''):
@@ -285,12 +309,12 @@ class QAgent:
 ########################################################################################
 #	Main #
 
-agent = QAgent(True,'curious')
-agent.qLearning(100)
+agent = QAgent(False,'curious')
+agent.qLearning(2)
 
 #TO DO
 '''
 put qtable in a diffrent file, should change the data structure eventually
-
+Fix detectCollision 
 BEGIN TESTING!!!!!!
 '''

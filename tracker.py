@@ -15,9 +15,11 @@ def searchForMotion(thresholdImg, cameraFeed):
     #Edit - pointless copy
     temp = copy.deepcopy(thresholdImg)
     
-    _, contours0, hierarchy = cv2.findContours( temp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    tester = cv2.findContours( temp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    print tester
     #contours = [cv2.approxPolyDP(cnt, 3, True) for cnt in contours0]
     #print contours
+    '''
     if (len(contours0)>0):
         detected = True
     else:
@@ -34,16 +36,17 @@ def searchForMotion(thresholdImg, cameraFeed):
         target = (xpos, ypos)
         cv2.circle(cameraFeed,(xpos, ypos),20,(0,255,0), 2)
         return (xpos,ypos)
+        '''
 
 def main():
     detected = False
     debug = False
 
-    camera = cv2.VideoCapture(1)
-    print camera.isOpened()
-    # if not camera.isOpened():
-    #     print "Error Establishing Video Feed!"
-    #     return -1
+    camera = cv2.VideoCapture(-1)
+    #print camera.isOpened()
+    if not camera.isOpened():
+        print "Error Establishing Video Feed!"
+        return -1
         
     while(True):
         (acquiered,frame1) = camera.read()

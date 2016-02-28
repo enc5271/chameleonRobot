@@ -4,7 +4,7 @@ import serial;
 import time
 
 EOL = "\r";
-SSC32_Port = 'COM4'
+SSC32_Port = '/dev/ttyUSB0'
 
 panServo = 0;              # Servo in the base
 LeftMStop = 1520;
@@ -103,5 +103,8 @@ class SSC32:
     #   Close the port
     self.ssc32.close();
 
-# test = SSC32()
-#test.run()
+  def executeSingleCommand(self,command):
+    self.Send_Command(command,True)
+
+test = SSC32()
+test.run()
