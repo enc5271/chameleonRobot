@@ -1,5 +1,8 @@
 import math
 
+def euclideanDist(a,b):
+    return math.sqrt( pow(a[0]-b[0],2) + pow(a[1]-b[1],2) + pow(a[2]-b[2],2))
+
 def detectCollision( baseServo,armServo, targetX,targetY,targetZ):
     #Define dimmensions of the experimental setup
     #Units in cm because the american English System is terrible
@@ -24,31 +27,23 @@ def detectCollision( baseServo,armServo, targetX,targetY,targetZ):
     P1 = [x_offset+xcomp, y_offset+ycomp, z_offset+zcomp];
     V = [xcomp, ycomp, zcomp];
     W = target-P0;
-    #disp(target);
+    print W
+    
 
     C1 = dot(W,V);
     C2 = dot(V,V);
     if C1 <= 0:
-        D = pdist([target;P0],'euclidean');
+        D = euclideanDist(target,P0);
     elif C2 <= C1:
-        D = pdist([target;P1],'euclidean');
+        D = euclideanDist(target,P1);
     else:
         b = C1/C2;
         PB = P0 + b*V;
-        D = pdist([target;PB],'euclidean');
+        D = euclideanDist(target,PB);
     end
     
     isHit = 0;
     if D<1:
         print 'Target was hit!'
         isHit = 1;
-    #Scatter plot for debugging
-    #xx=[P0(1), P1(1)]
-    #yy=[P0(2), P1(2)]
-    #zz=[P0(3), P1(3)]
-    #plot3(xx,yy,zz)
-    #xx=[P0(1), P1(1), target(1)]
-    #yy=[P0(2), P1(2), target(2)]
-    #zz=[P0(3), P1(3), target(3)]
-    #scatter3(xx,yy,zz)
-
+    return isHit

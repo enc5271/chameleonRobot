@@ -1,15 +1,16 @@
-import csv
 import random
 import copy
 from collections import defaultdict
 import math
+import time
 
 #import detectCollision
 import workingPort as ssc
 import colorTracking
+from QTable import *
 
-#ACTION_BANK = ['base_10', 'base_-10', 'arm_10', 'arm_-10', 'fire']
 ACTION_BANK = ['left', 'right', 'up', 'down', 'fire']
+PARTITION = [[0 ,2], [1,3]]
 #These definitions are also defined in Turret.py
 #These are the true values
 '''
@@ -38,100 +39,25 @@ class Action:
 	def __init__(self,actionName):
 		self.action = actionName
 
-class QTable:
-	def __init__(self,filename=''):
-		self.qtable = []
-		if filename == '':
-			print 'Creating new QTable.'
-		else:
-			self.loadTable(filename)
+#############################################################################################
+#	Helper Functions
 
-	def loadTable(self,filename):
-		with open(filename,'rb') as csvfile:
-			qreader = csv.reader(csvfile)
-			for row in qreader:
-				row[0] = float(row[0])
-				row[1] = float(row[1])
-				row[2] = int(row[2])
-				row[3] = int(row[3])
-				row[4] = row[4]
-				row[5] = float(row[5])
-				row[6] = int(row[6])
-				self.qtable.append(row)
+def radian2Pwm(rad):
+	pwm = 600 + rad*(1800/math.pi)
+	return pwm
 
-	def writeTable(self,filename='QTable.csv'):
-		#Write QTable from memory to 'QTable.csv' in current directory.
-		with open(filename,'r+') as csvfile:
-			for row in self.qtable:
-				csvfile.write('{0},{1},{2},{3},{4},{5},{6}\n'.format(row[0],row[1],row[2],row[3],row[4],row[5],row[6]))
+def imgHash(x, y):
+	#This is dependent on the camera
+	imgHeight = 480
+	imgWidth = 640
+	#number of img divisions
+	partitions=2
+	hashX = x/(imgWidth/partitions)
+	hashY = y/(imgHeight/partitions)
+	print x,y
+	print hashX,hashY
+	return PARTITION[hashX][hashY]
 
-	def getQValue(self,state,action1):
-		for row in self.qtable:
-			if row[0]==state.base:
-				if row[1]==state.arm:
-					if row[2]==state.fire:
-						if row[3]==state.target:
-							if row[4]==action1:
-								return row[5]
-		print 'ERROR: In getQValue Table entry not found.'
-		
-	def setQValue(self,state,action1,newReward):
-		for row in self.qtable:
-			if row[0]==state.base:
-				if row[1]==state.arm:
-					if row[2]==state.fire:
-						if row[3]==state.target:
-							if row[4]==action1:
-								row[5] = newReward
-								row[6] = row[6] + 1
-								return
-		print 'ERROR: In setQValue Table entry not Found.'
-
-	def getFreq(self,state,action1):
-		for row in self.qtable:
-			if row[0]==state.base:
-				if row[1]==state.arm:
-					if row[2]==state.fire:
-						if row[3]==state.target:
-							if row[4]==action1:
-								return row[6]
-		print 'ERROR: In getFreq Table entry not Found.'
-
-	def incrementFreq(self,state,action1):
-		for row in self.qtable:
-			if row[0]==state.base:
-				if row[1]==state.arm:
-					if row[2]==state.fire:
-						if row[3]==state.target:
-							if row[4]==action1:
-								row[6] = row[6]+1
-								return
-		print 'ERROR: In incrementFreq Table entry not Found.'
-
-	def getQActionPairs(self,state):
-		qvalues = []
-		for row in self.qtable:
-			if row[0]==state.base:
-				if row[1]==state.arm:
-					if row[2]==state.fire:
-						if row[3]==state.target:
-							qvalues.append([row[4],row[5]])
-		if len(qvalues)==0:
-			print 'ERROR: In getQActionPairs Table entry not Found.'
-		return qvalues			 
-
-	def getMaxQ(self,state):
-		pairs = self.getQActionPairs(state)
-		if(len(pairs)>0):
-			maxQ = pairs[0]
-			for pair in pairs:
-				if maxQ[1] < pair[1]:
-					maxQ = pair
-			#Note that maxQ is the tuple (state, action)
-			return maxQ
-		else:
-			print "This case should never happen, and is only left here for debugging. Remove me before program is shipped out!"
-			return -1000	#IMPORTANT - What should be done in the case that this state has not been visited
 
 #############################################################################################
 class QAgent:
@@ -140,13 +66,15 @@ class QAgent:
 		self.isSim = isSim1
 		self.initState = State(self.qtable.qtable[0][0],self.qtable.qtable[0][1],0,0)
 		if self.isSim:
-			#self.matlabEng = matlab.engine.start_matlab()
 			#Matlab requires the 'physical' location of the target
 			self.targetRealX = None
 			self.targetRealY = None
 			self.targetRealZ = None
 			target = self.generateTarget()
 		else:
+			#Read target position from camera and pass to initialization state
+			(rawTargetX,rawTargetY) = colorTracking.trackGreenTarget()
+			self.initState.target=imgHash(rawTargetX,rawTargetY)
 			self.ssc32 = ssc.SSC32()
 			
 		#IMPORTANT - What should these values be? They determine many things about convergence
@@ -154,14 +82,9 @@ class QAgent:
 		self.discount = 0.8	
 		self.learningRate = 0.2
 		self.personality = agentType
-		######################################################################################
-		
-		
-		
 		
 	def generateTarget(self):
 		random.seed()
-		partitionBank = [[0 ,2], [1,3]]
 		#known to work [22 13 20] x y z
 		self.targetRealX = random.uniform(0,55)
 		self.targetRealY = random.uniform(0,35)
@@ -169,16 +92,21 @@ class QAgent:
 		xPartition = int(self.targetRealX / 28)
 		yPartition = int(self.targetRealY / 18)
 		print 'Target: {0} {1} {2}'.format(self.targetRealX,self.targetRealY,self.targetRealZ)
-		target = partitionBank[xPartition][yPartition]
+		target = PARTITION[xPartition][yPartition]
 		return target
-		'''Map targets actual position to pixels
-		focalD = 25;
-		Projected = [1,0,0,0;0,1,0,0;0,0,-1/focalD,0]*targets(1)
-		'''
 
 	def isHit(self,state):
 		print state
-		return self.matlabEng.detectCollision(state.base,state.arm,self.targetRealX,self.targetRealY,self.targetRealZ)
+		if self.isSim==True:
+			return self.matlabEng.detectCollision(state.base,state.arm,self.targetRealX,self.targetRealY,self.targetRealZ)
+		else:
+			while (1):
+				ans = input('Enter 1 if target was hit else enter 0')
+				ans = int(ans)
+				if ( (ans==0) or (ans ==1)):
+					return ans
+				else:
+					print 'Invalid input.'
 
 	def selectRandomAction(self):
 		random.seed()
@@ -225,11 +153,14 @@ class QAgent:
 			if ARM_MIN  <= newAngle <= ARM_MAX:
 				newState.arm = newAngle
 		elif action[0] == 'fire':
-			if self.isHit(state):
-				#The target was hit
-				newState.fire= 1 	
+			if self.isSim==True:
+				if self.isHit(state):
+					#The target was hit
+					newState.fire= 1 	
+				else:
+					#missed the target
+					newState.fire=0
 			else:
-				#missed the target
 				newState.fire = 0 	
 		elif action[0]=='up':
 			if state.arm == ARM_MAX:
@@ -256,30 +187,45 @@ class QAgent:
 			return
 		return newState
 
+	'''
+	The format for ssc32 commands is #<channel><command type><arguement>
+	In this case moving the servo to a new position requires command type P and arguement of PWM
+	ex: #0P1500 -> move servo on ch:0 to position 1500 i.e. center position
+	'''
 	def getSSC32Command(self,state,action):
+		if( (action=='up') or (action == 'down')):
+			pwm = radian2Pwm(state.arm)
+			#arm servo is on channel 1
+			return '#1P{0}'.format(pwm)
+		elif( (action=='left') or (action == 'right')):
+			pwm = radian2Pwm(state.base)
+			#base servo is on channel 0
+			return '#0P{0}'.format(pwm)
+		else:
+			#should really throw an error
+			print 'ERROR: Command not supported or bad format.'
 
-
-	def executePhysicalAction(state,action):
+	def executePhysicalAction(self,state,action):
 		newState = copy.copy(state)
 		#Not sure if I should get the state from software or query the servo controller
-		newState = self.executeVirtualAction(newState)
+		newState = self.executeVirtualAction(newState,action)
 		if(action== 'fire'):
 			self.ssc32.executeSingleCommand('#7H')
-			sleep(1)
+			time.sleep(1)
+			newState.fire=self.isHit(newState)
 			self.ssc32.executeSingleCommand('#7L')
+			time.sleep(1)
 		else:
-			command = self.getSSC32Command(newState)
+			command = self.getSSC32Command(newState,action)
+			time.sleep(0.1)
 			self.ssc32.executeSingleCommand(command)
 		return newState
 
 	def executeAction(self,state, action):
-		#The move command for the physical agent should also be added
-		
 		if self.isSim == 1:
-			return executeVirtualAction(state,action)
-		
+			return self.executeVirtualAction(state,action)
 		else:
-			return executePhysicalAction(state,action)
+			return self.executePhysicalAction(state,action)
 
 	#targetZ is depth and only used for the simulation
 	def qLearning(self,maxIterations,startState=''):
@@ -301,7 +247,6 @@ class QAgent:
 			self.qtable.setQValue(state,action,newQ)
 			state = nextState
 			iterations = iterations + 1
-			
 		if(state.fire):
 			print 'Target was hit in state {0} on iteration {1}'.format(state,iterations)
 		self.qtable.writeTable();
@@ -310,11 +255,15 @@ class QAgent:
 #	Main #
 
 agent = QAgent(False,'curious')
-agent.qLearning(2)
+agent.qLearning(10)
 
 #TO DO
 '''
 put qtable in a diffrent file, should change the data structure eventually
-Fix detectCollision 
 BEGIN TESTING!!!!!!
+
+Not sure if the below thing needs to be done???
+Map targets actual position to pixels
+		focalD = 25;
+		Projected = [1,0,0,0;0,1,0,0;0,0,-1/focalD,0]*targets(1)
 '''

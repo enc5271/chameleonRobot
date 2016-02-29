@@ -106,5 +106,5 @@ class SSC32:
   def executeSingleCommand(self,command):
     self.Send_Command(command,True)
 
-test = SSC32()
-test.run()
+#test = SSC32()
+#test.run()
