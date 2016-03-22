@@ -101,7 +101,7 @@ class QAgent:
 			return self.matlabEng.detectCollision(state.base,state.arm,self.targetRealX,self.targetRealY,self.targetRealZ)
 		else:
 			while (1):
-				ans = input('Enter 1 if target was hit else enter 0')
+				ans = input('Enter 1 if target was hit else enter 0:\n')
 				ans = int(ans)
 				if ( (ans==0) or (ans ==1)):
 					return ans
@@ -235,6 +235,8 @@ class QAgent:
 			state = startState
 		iterations = 0
 		while (not(state.fire) and iterations<maxIterations):
+			#get new target position
+
 			action = self.selectAction(state)	#see function for exploration schemes
 			#take action observe outcome
 			print 'In state: {0}\nTook action: {1}'.format(state,action)
@@ -254,14 +256,11 @@ class QAgent:
 ########################################################################################
 #	Main #
 
-agent = QAgent(False,'curious')
+agent = QAgent(False,'balanced')
 agent.qLearning(10)
 
 #TO DO
 '''
-put qtable in a diffrent file, should change the data structure eventually
-BEGIN TESTING!!!!!!
-
 Not sure if the below thing needs to be done???
 Map targets actual position to pixels
 		focalD = 25;
