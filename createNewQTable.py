@@ -3,7 +3,7 @@ import math
 # Use when having a more detailed discretization
 #ACTION_BANK = ['base_10', 'base_-10', 'arm_10', 'arm_-10', 'fire']
 ACTION_BANK = ['left', 'right', 'up', 'down', 'fire']
-numPartitions = 4
+numPartitions = 9
 
 #These definitions are also defined in Turret.py
 BASE_MIN = 0.837758
@@ -13,8 +13,8 @@ ARM_MAX = 2.1416
 
 increment = math.pi/180 
 #code for more complicated physical agent states
-#baseList = [round(x*increment,5) for x in [45,135]]
-#armList = [round(x*increment,5) for x in  [75,105]]
+baseList = [round(x*increment,5) for x in [45,135]]
+armList = [round(x*increment,5) for x in  [75,105]]
 
 baseList = [BASE_MIN,BASE_MAX]
 armList = [ARM_MIN,ARM_MAX]
