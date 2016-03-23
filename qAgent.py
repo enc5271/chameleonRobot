@@ -24,6 +24,9 @@ BASE_MIN = 0.837758
 BASE_MAX = 2.3
 ARM_MIN = 1.0
 ARM_MAX = 2.1416
+#Partitions per dim so 3 => 9x9 4=>4x4 etc
+NUM_PARTITIONS = 3
+ACTION_VAL = {}
 
 class State:
 	def __init__(self, base1,arm1,fire1,target):
@@ -35,9 +38,7 @@ class State:
 	def __str__(self):
 		return "({0},{1},{2},{3})".format(self.base,self.arm,self.fire,self.target)
 
-class Action:
-	def __init__(self,actionName):
-		self.action = actionName
+
 
 #############################################################################################
 #	Helper Functions
@@ -64,6 +65,7 @@ class QAgent:
 	def __init__(self,isSim1,agentType):
 		self.qtable = QTable('QTable.csv')
 		self.isSim = isSim1
+		self.initActionVal()
 		self.initState = State(self.qtable.qtable[0][0],self.qtable.qtable[0][1],0,0)
 		if self.isSim:
 			#Matlab requires the 'physical' location of the target
@@ -83,6 +85,12 @@ class QAgent:
 		self.learningRate = 0.2
 		self.personality = agentType
 		
+	def initActionVal(self):
+		baseDelta = (BASE_MAX - BASE_MIN)/NUM_PARTITIONS
+		armDelta = (ARM_MAX - ARM_MIN)/NUM_PARTITIONS
+		ACTION_VAL ={'up':armDelta, 'down':-armDelta, 'left':-baseDelta, 'right':baseDelta}
+		print ACTION_VAL
+
 	def generateTarget(self):
 		random.seed()
 		#known to work [22 13 20] x y z
@@ -164,24 +172,29 @@ class QAgent:
 				newState.fire = 0 	
 		elif action[0]=='up':
 			if state.arm == ARM_MAX:
+				#keep same value
 				newState.arm =newState.arm
 			elif state.arm < ARM_MAX:
-				newState.arm = ARM_MAX 
+				delta = ACTION_VAL['up']
+				newState.arm = newState.ar, + delta 
 		elif action[0]=='down':
 			if state.arm == ARM_MIN:
 				newState.arm =newState.arm
 			elif state.arm > ARM_MIN:
-				newState.arm = ARM_MIN 
+				delta = ACTION_VAL['down']
+				newState.arm = newState.arm + delta 
 		elif action[0]=='left':
 			if state.base == BASE_MIN:
 				newState.base =newState.base
 			elif state.base > BASE_MIN:
-				newState.base = BASE_MIN 
+				delta = ACTION_VAL['left']
+				newState.base = newState.base + delta 
 		elif action[0]=='right':
 			if state.base == BASE_MAX:
 				newState.base =newState.base
 			elif state.base < BASE_MAX:
-				newState.base = BASE_MAX 
+				delta = ACTION_VAL['right']
+				newState.base = newState.base + delta
 		else:
 			print 'ERROR: Action not found.'
 			return
@@ -236,7 +249,8 @@ class QAgent:
 		iterations = 0
 		while (not(state.fire) and iterations<maxIterations):
 			#get new target position
-
+			(rawTargetX,rawTargetY) = colorTracking.trackGreenTarget()
+			state.target=imgHash(rawTargetX,rawTargetY)
 			action = self.selectAction(state)	#see function for exploration schemes
 			#take action observe outcome
 			print 'In state: {0}\nTook action: {1}'.format(state,action)
