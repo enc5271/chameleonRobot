@@ -10,14 +10,19 @@ BASE_MIN = 0.837758
 BASE_MAX = 2.3
 ARM_MIN = 1.0
 ARM_MAX = 2.1416
+DELTA_BASE = (BASE_MAX-BASE_MIN)/math.sqrt(numPartitions)
+DELTA_ARM = (ARM_MAX-ARM_MIN)/math.sqrt(numPartitions)
+
+
 
 increment = math.pi/180 
 #code for more complicated physical agent states
-baseList = [round(x*increment,5) for x in [45,135]]
-armList = [round(x*increment,5) for x in  [75,105]]
+baseList = [round(x*DELTA_BASE+BASE_MIN+0.5*DELTA_BASE,5) for x in range(int(math.sqrt(numPartitions)))]
+armList = [round(x*DELTA_ARM+ARM_MIN+0.5*DELTA_ARM,5) for x in range(int(math.sqrt(numPartitions)))]
 
-baseList = [BASE_MIN,BASE_MAX]
-armList = [ARM_MIN,ARM_MAX]
+# Only works for 2x2 space partition
+#baseList = [BASE_MIN,BASE_MAX]
+#armList = [ARM_MIN,ARM_MAX]
 
 filename = 'QTable.csv'
 f = open(filename,'w')
