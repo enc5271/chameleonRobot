@@ -4,13 +4,13 @@ from collections import defaultdict
 import math
 import time
 
-#import detectCollision
+import detectCollision
 import workingPort as ssc
 import colorTracking
 from QTable import *
 
 ACTION_BANK = ['left', 'right', 'up', 'down', 'fire']
-PARTITION = [[0 ,2], [1,3]]
+PARTITION = [[0 ,3, 6], [1,4,7], [2,5,8]]
 #These definitions are also defined in Turret.py
 #These are the true values
 '''
@@ -26,12 +26,13 @@ ARM_MIN = 1.0
 ARM_MAX = 2.1416
 #Partitions per dim so 3 => 9x9 4=>4x4 etc
 NUM_PARTITIONS = 3
-ACTION_VAL = {}
+
 
 class State:
 	def __init__(self, base1,arm1,fire1,target):
 		self.base = base1
 		self.arm = arm1
+		# Fire is not actually a state but an easy way to denote if the target was hit
 		self.fire = fire1
 		self.target = target
 		
@@ -52,7 +53,7 @@ def imgHash(x, y):
 	imgHeight = 480
 	imgWidth = 640
 	#number of img divisions
-	partitions=2
+	partitions=3
 	hashX = x/(imgWidth/partitions)
 	hashY = y/(imgHeight/partitions)
 	print x,y
@@ -65,6 +66,7 @@ class QAgent:
 	def __init__(self,isSim1,agentType):
 		self.qtable = QTable('QTable.csv')
 		self.isSim = isSim1
+		self.actionValues = {}
 		self.initActionVal()
 		self.initState = State(self.qtable.qtable[0][0],self.qtable.qtable[0][1],0,0)
 		if self.isSim:
@@ -86,10 +88,10 @@ class QAgent:
 		self.personality = agentType
 		
 	def initActionVal(self):
-		baseDelta = (BASE_MAX - BASE_MIN)/NUM_PARTITIONS
-		armDelta = (ARM_MAX - ARM_MIN)/NUM_PARTITIONS
-		ACTION_VAL ={'up':armDelta, 'down':-armDelta, 'left':-baseDelta, 'right':baseDelta}
-		print ACTION_VAL
+		baseDelta = round((BASE_MAX - BASE_MIN)/NUM_PARTITIONS,5)
+		armDelta = round((ARM_MAX - ARM_MIN)/NUM_PARTITIONS, 5)
+		self.actionValues ={'up':armDelta, 'down':-armDelta, 'left':-baseDelta, 'right':baseDelta}
+		#print ACTION_VAL
 
 	def generateTarget(self):
 		random.seed()
@@ -106,7 +108,7 @@ class QAgent:
 	def isHit(self,state):
 		print state
 		if self.isSim==True:
-			return self.matlabEng.detectCollision(state.base,state.arm,self.targetRealX,self.targetRealY,self.targetRealZ)
+			return detectCollision.detectCollision(state.base,state.arm,self.targetRealX,self.targetRealY,self.targetRealZ)
 		else:
 			while (1):
 				ans = input('Enter 1 if target was hit else enter 0:\n')
@@ -148,19 +150,8 @@ class QAgent:
 	def executeVirtualAction(self,state,action):
 		success = 0
 		newState = copy.copy(state)
-		action = action.split('_') #check that this remove the under score and returns the action descriptor and degrees
-		if action[0] == 'base':
-			angleChange = float(action[1])
-			newAngle = (state.base + angleChange)
-			if BASE_MIN  <= newAngle <= BASE_MAX:
-				newState.base = newAngle
-
-		elif action[0] =='arm':
-			angleChange = float(action[1])
-			newAngle = (state.arm + angleChange)
-			if ARM_MIN  <= newAngle <= ARM_MAX:
-				newState.arm = newAngle
-		elif action[0] == 'fire':
+		print action
+		if action == 'fire':
 			if self.isSim==True:
 				if self.isHit(state):
 					#The target was hit
@@ -170,31 +161,39 @@ class QAgent:
 					newState.fire=0
 			else:
 				newState.fire = 0 	
-		elif action[0]=='up':
-			if state.arm == ARM_MAX:
+		elif action =='up':
+			delta = self.actionValues['up']
+			newArm = round(newState.arm + delta,5) 
+			if newArm >= ARM_MAX:
 				#keep same value
 				newState.arm =newState.arm
-			elif state.arm < ARM_MAX:
-				delta = ACTION_VAL['up']
-				newState.arm = newState.ar, + delta 
-		elif action[0]=='down':
-			if state.arm == ARM_MIN:
+			else:
+				newState.arm = newArm
+				
+		elif action =='down':
+			delta = self.actionValues['down']
+			newArm = round(newState.arm + delta,5) 
+			if newArm <= ARM_MIN:
 				newState.arm =newState.arm
-			elif state.arm > ARM_MIN:
-				delta = ACTION_VAL['down']
-				newState.arm = newState.arm + delta 
-		elif action[0]=='left':
-			if state.base == BASE_MIN:
+			else:
+				newState.arm=newArm
+				
+		elif action =='left':
+			delta = self.actionValues['left']
+			newBase = round(newState.base + delta,5)
+			if newBase <= BASE_MIN:
 				newState.base =newState.base
-			elif state.base > BASE_MIN:
-				delta = ACTION_VAL['left']
-				newState.base = newState.base + delta 
-		elif action[0]=='right':
-			if state.base == BASE_MAX:
+			else:
+				newState.base = newBase
+				
+		elif action =='right':
+			delta = self.actionValues['right']
+			newBase = round(newState.base + delta,5)
+			if newBase >= BASE_MAX:
 				newState.base =newState.base
-			elif state.base < BASE_MAX:
-				delta = ACTION_VAL['right']
-				newState.base = newState.base + delta
+			else:
+				newState.base = newBase
+				
 		else:
 			print 'ERROR: Action not found.'
 			return
@@ -263,14 +262,14 @@ class QAgent:
 			self.qtable.setQValue(state,action,newQ)
 			state = nextState
 			iterations = iterations + 1
-		if(state.fire):
+		if(action == 'fire'):
 			print 'Target was hit in state {0} on iteration {1}'.format(state,iterations)
 		self.qtable.writeTable();
 
 ########################################################################################
 #	Main #
 
-agent = QAgent(False,'balanced')
+agent = QAgent(True,'curious')
 agent.qLearning(10)
 
 #TO DO

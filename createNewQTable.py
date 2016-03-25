@@ -10,8 +10,8 @@ BASE_MIN = 0.837758
 BASE_MAX = 2.3
 ARM_MIN = 1.0
 ARM_MAX = 2.1416
-DELTA_BASE = (BASE_MAX-BASE_MIN)/math.sqrt(numPartitions)
-DELTA_ARM = (ARM_MAX-ARM_MIN)/math.sqrt(numPartitions)
+DELTA_BASE = round((BASE_MAX-BASE_MIN)/math.sqrt(numPartitions),5)
+DELTA_ARM = round((ARM_MAX-ARM_MIN)/math.sqrt(numPartitions),5)
 
 
 
@@ -28,9 +28,8 @@ filename = 'QTable.csv'
 f = open(filename,'w')
 for base in baseList:
 	for arm in armList:
-		for fire in range(2):
-			for target in range(0,numPartitions):
-				for action in ACTION_BANK:
-					row = "{0},{1},{2},{3},{4},{5},{6}\n".format(base,arm,fire,target,action,'0','0')
-					f.write(row)
+		for target in range(0,numPartitions):
+			for action in ACTION_BANK:
+				row = "{0},{1},{2},{3},{4},{5}\n".format(base,arm,target,action,'0','0')
+				f.write(row)
 f.close()
