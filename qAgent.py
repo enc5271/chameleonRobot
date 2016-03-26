@@ -3,6 +3,7 @@ import copy
 from collections import defaultdict
 import math
 import time
+import sys, getopt
 
 import detectCollision
 import workingPort as ssc
@@ -74,7 +75,7 @@ class QAgent:
 			self.targetRealX = None
 			self.targetRealY = None
 			self.targetRealZ = None
-			target = self.generateTarget()
+			self.initState.target = self.generateTarget()
 		else:
 			#Read target position from camera and pass to initialization state
 			(rawTargetX,rawTargetY) = colorTracking.trackGreenTarget()
@@ -84,14 +85,13 @@ class QAgent:
 		#IMPORTANT - What should these values be? They determine many things about convergence
 		self.r = 0
 		self.discount = 0.8	
-		self.learningRate = 0.2
+		self.learningRate = 0.5
 		self.personality = agentType
 		
 	def initActionVal(self):
 		baseDelta = round((BASE_MAX - BASE_MIN)/NUM_PARTITIONS,5)
 		armDelta = round((ARM_MAX - ARM_MIN)/NUM_PARTITIONS, 5)
 		self.actionValues ={'up':armDelta, 'down':-armDelta, 'left':-baseDelta, 'right':baseDelta}
-		#print ACTION_VAL
 
 	def generateTarget(self):
 		random.seed()
@@ -99,14 +99,18 @@ class QAgent:
 		self.targetRealX = random.uniform(0,55)
 		self.targetRealY = random.uniform(0,35)
 		self.targetRealZ = random.uniform(0,20)
-		xPartition = int(self.targetRealX / 28)
-		yPartition = int(self.targetRealY / 18)
+		xPartition = int(math.floor(self.targetRealX / (55.0/NUM_PARTITIONS)))
+		yPartition = int(math.floor(self.targetRealY / (35.0/NUM_PARTITIONS)))
+		print xPartition
+		print yPartition
+		print
 		print 'Target: {0} {1} {2}'.format(self.targetRealX,self.targetRealY,self.targetRealZ)
 		target = PARTITION[xPartition][yPartition]
+		print target
 		return target
 
 	def isHit(self,state):
-		print state
+		#print state
 		if self.isSim==True:
 			return detectCollision.detectCollision(state.base,state.arm,self.targetRealX,self.targetRealY,self.targetRealZ)
 		else:
@@ -123,11 +127,13 @@ class QAgent:
 		selector = random.randint(0,4)
 		return ACTION_BANK[selector]
 
-	def getReward(self,state):
-		if state.fire==1:
-			return 100
+	def getReward(self,state,action):
+		if action == 'fire' and state.fire==1:
+			return 1000
+		elif action == 'fire' and state.fire==0:
+			return -5
 		else:
-			return 0
+			return -1
 
 	def greedyAction(self,state):
 		return self.qtable.getMaxQ(state)[0]
@@ -150,12 +156,13 @@ class QAgent:
 	def executeVirtualAction(self,state,action):
 		success = 0
 		newState = copy.copy(state)
-		print action
 		if action == 'fire':
 			if self.isSim==True:
 				if self.isHit(state):
 					#The target was hit
 					newState.fire= 1 	
+					print 'Target hit'
+					time.sleep(0.2)
 				else:
 					#missed the target
 					newState.fire=0
@@ -247,14 +254,15 @@ class QAgent:
 			state = startState
 		iterations = 0
 		while (not(state.fire) and iterations<maxIterations):
-			#get new target position
-			(rawTargetX,rawTargetY) = colorTracking.trackGreenTarget()
-			state.target=imgHash(rawTargetX,rawTargetY)
+			if not self.isSim:
+				#get new target position
+				(rawTargetX,rawTargetY) = colorTracking.trackGreenTarget()
+				state.target=imgHash(rawTargetX,rawTargetY)
 			action = self.selectAction(state)	#see function for exploration schemes
 			#take action observe outcome
 			print 'In state: {0}\nTook action: {1}'.format(state,action)
 			nextState = self.executeAction(state,action)
-			reward = self.getReward(nextState)
+			reward = self.getReward(nextState,action)
 			curQ = self.qtable.getQValue(state,action)
 			(maxQAction,maxQ) = self.qtable.getMaxQ(nextState)
 			#update old q value
@@ -262,20 +270,44 @@ class QAgent:
 			self.qtable.setQValue(state,action,newQ)
 			state = nextState
 			iterations = iterations + 1
-		if(action == 'fire'):
+		if(state.fire):
 			print 'Target was hit in state {0} on iteration {1}'.format(state,iterations)
+			time.sleep(.5)
 		self.qtable.writeTable();
 
 ########################################################################################
+
+def runTrainingSession(maxIter,numSessions):
+	for i in range(numSessions):
+		agent = QAgent(True,'curious')
+		agent.qLearning(maxIter)
+
 #	Main #
-
-agent = QAgent(True,'curious')
-agent.qLearning(10)
-
+if __name__ == '__main__':
+	argue = sys.argv[1:]
+	isSim = True
+	maxIter=0
+	numSessions = 0
+	try:
+		opts, args = getopt.getopt(argue,"i:t:r:",['maxIter=','sess=','whateva'])
+	except getopt.GetoptError:
+		print 'QAgent.py -i <maxIterations> -t <numSessions> -r <runPhysicalTrial?>'
+	for opt, arg in opts:
+		if opt in ('-i'):
+			maxIter = arg
+		elif opt == '-t':
+			numSessions = arg
+		elif opt == '-r':
+			isSim = False
+	if isSim:
+		maxIter = int(maxIter)
+		numSessions = int(numSessions)	
+		runTrainingSession(maxIter,numSessions)
+	else:
+		maxIter = int(maxIter)
+		agent = QAgent(False,'greedy')
+		agent.qLearning(maxIter)
 #TO DO
 '''
-Not sure if the below thing needs to be done???
-Map targets actual position to pixels
-		focalD = 25;
-		Projected = [1,0,0,0;0,1,0,0;0,0,-1/focalD,0]*targets(1)
+Implement some kind of interpolation to smooth actions and striking
 '''

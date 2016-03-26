@@ -28,7 +28,7 @@ def detectCollision( baseServo,armServo, targetX,targetY,targetZ):
     P1 = [x_offset+xcomp, y_offset+ycomp, z_offset+zcomp]
     V = [xcomp, ycomp, zcomp]
     W = [target[0]-P0[0], target[1]-P0[1], target[2]-P0[2]]
-    print W
+    #print W
     
 
     C1 = dot(W,V)

@@ -1,4 +1,5 @@
 import csv
+import matplotlib.pyplot as pyplot
 
 class QTable:
 	def __init__(self,filename=''):
@@ -81,7 +82,6 @@ class QTable:
 		return qvalues			 
 
 	def getMaxQ(self,state):
-
 		pairs = self.getQActionPairs(state)
 		#print pairs
 		if(len(pairs)>0):
@@ -94,3 +94,12 @@ class QTable:
 		else:
 			print "This case should never happen, and is only left here for debugging. Remove me before program is shipped out!"
 			return -1000	#IMPORTANT - What should be done in the case that this state has not been visited
+	
+	def getStats(self):
+		for row in self.qtable:
+			if row[4] >0:
+				print row
+
+if __name__=='__main__':
+	table = QTable('QTable.csv')
+	table.getStats
