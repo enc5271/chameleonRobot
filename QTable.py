@@ -102,4 +102,4 @@ class QTable:
 
 if __name__=='__main__':
 	table = QTable('QTable.csv')
-	table.getStats
+	table.getStats()

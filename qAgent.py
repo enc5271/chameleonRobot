@@ -98,7 +98,7 @@ class QAgent:
 		#known to work [22 13 20] x y z
 		self.targetRealX = random.uniform(0,55)
 		self.targetRealY = random.uniform(0,35)
-		self.targetRealZ = random.uniform(0,20)
+		self.targetRealZ = random.uniform(0,40)
 		xPartition = int(math.floor(self.targetRealX / (55.0/NUM_PARTITIONS)))
 		yPartition = int(math.floor(self.targetRealY / (35.0/NUM_PARTITIONS)))
 		print xPartition
@@ -133,7 +133,7 @@ class QAgent:
 		elif action == 'fire' and state.fire==0:
 			return -5
 		else:
-			return -1
+			return -5
 
 	def greedyAction(self,state):
 		return self.qtable.getMaxQ(state)[0]
