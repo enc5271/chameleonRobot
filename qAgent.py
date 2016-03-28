@@ -164,7 +164,7 @@ class QAgent:
 					#The target was hit
 					newState.fire= 1 	
 					print 'Target hit'
-					time.sleep(0.2)
+					#time.sleep(0.2)
 				else:
 					#missed the target
 					newState.fire=0
@@ -248,6 +248,15 @@ class QAgent:
 		else:
 			return self.executePhysicalAction(state,action)
 
+	def softMaxSelection(self,state):
+		temperature = 0.5 # How should I set this value?
+		total = 0
+		for a in ACTION_BANK:
+			total = total + exp(self.qtable.getQValue(state,a)/temperature)
+		softMaxList = []
+		for a in ACTION_BANK:
+			softMaxList.append( a, exp(self.qtable.getQValue(state,a)/temperature)/total )
+
 	#targetZ is depth and only used for the simulation
 	def qLearning(self,maxIterations,startState=''):
 		if startState=='':
@@ -274,14 +283,14 @@ class QAgent:
 			iterations = iterations + 1
 		if(state.fire):
 			print 'Target was hit in state {0} on iteration {1}'.format(state,iterations)
-			time.sleep(.5)
+			#time.sleep(.5)
 		self.qtable.writeTable();
 
 ########################################################################################
 
 def runTrainingSession(maxIter,numSessions):
 	for i in range(numSessions):
-		agent = QAgent(True,'balanced')
+		agent = QAgent(True,'curious')
 		agent.qLearning(maxIter)
 
 #	Main #
