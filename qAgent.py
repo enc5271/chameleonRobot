@@ -85,7 +85,7 @@ class QAgent:
 		#IMPORTANT - What should these values be? They determine many things about convergence
 		self.r = 0
 		self.discount = 0.8	
-		self.learningRate = 0.5
+		self.learningRate = 0.25
 		self.personality = agentType
 		
 	def initActionVal(self):
@@ -95,17 +95,19 @@ class QAgent:
 
 	def generateTarget(self):
 		random.seed()
-		#known to work [22 13 20] x y z
-		self.targetRealX = random.uniform(0,55)
-		self.targetRealY = random.uniform(0,35)
+		
+		virtualPartition = [[6 ,3, 0], [7,4,1], [8,5,2]]
+
+		self.targetRealX = random.uniform(0,60)
+		self.targetRealY = random.uniform(20,40)
 		self.targetRealZ = random.uniform(0,40)
-		xPartition = int(math.floor(self.targetRealX / (55.0/NUM_PARTITIONS)))
-		yPartition = int(math.floor(self.targetRealY / (35.0/NUM_PARTITIONS)))
+		xPartition = int(math.floor(self.targetRealX / (60.0/NUM_PARTITIONS)))
+		yPartition = int(math.floor(self.targetRealZ / (40.0/NUM_PARTITIONS)))
 		print xPartition
 		print yPartition
 		print
 		print 'Target: {0} {1} {2}'.format(self.targetRealX,self.targetRealY,self.targetRealZ)
-		target = PARTITION[xPartition][yPartition]
+		target = virtualPartition[xPartition][yPartition]
 		print target
 		return target
 
@@ -133,7 +135,7 @@ class QAgent:
 		elif action == 'fire' and state.fire==0:
 			return -5
 		else:
-			return -5
+			return -1
 
 	def greedyAction(self,state):
 		return self.qtable.getMaxQ(state)[0]
@@ -279,7 +281,7 @@ class QAgent:
 
 def runTrainingSession(maxIter,numSessions):
 	for i in range(numSessions):
-		agent = QAgent(True,'curious')
+		agent = QAgent(True,'balanced')
 		agent.qLearning(maxIter)
 
 #	Main #

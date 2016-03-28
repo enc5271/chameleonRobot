@@ -12,11 +12,11 @@ def detectCollision( baseServo,armServo, targetX,targetY,targetZ, debug=False):
     # The top right corner of the experiment is the origin 
     # left and right from the base
     #x_offset = 28.0
-    x_offset = 20.0
+    x_offset = 30.0
     #up and down from the base
-    y_offset = 0.0
+    y_offset = 20.0
     #This should be the depth from the base ie motion directly away from base.
-    z_offset = 18.0
+    z_offset = 20.0
     l = 16 #length of the party blower
 
     
@@ -54,8 +54,8 @@ def detectCollision( baseServo,armServo, targetX,targetY,targetZ, debug=False):
 
     C1 = dot(W,V)
     C2 = dot(V,V)
-    print 'C1: {0}'.format(C1)
-    print 'C2: {0}'.format(C2)
+    #print 'C1: {0}'.format(C1)
+    #print 'C2: {0}'.format(C2)
     if C1 <= 0:
         D = euclideanDist(target,P0)
         #print 'D: {0}'.format(D)
@@ -82,7 +82,7 @@ if __name__=='__main__':
     tx = 27
     ty =13
     tz = 12.5
-    detectCollision(base,arm,tx,ty,tz)
+    detectCollision(base,arm,tx,ty,tz,True)
     #1.56887,1.57079
     #base 2.05628
     #arm 1.95132
