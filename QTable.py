@@ -99,6 +99,20 @@ class QTable:
 		for row in self.qtable:
 			if row[4] >0:
 				print row
+		(action, state) = (None, None)
+		Max = float('-inf') 
+		for i in range (0,len(self.qtable)):
+			row = self.qtable[i]
+			Q = row[4]
+			if Q > Max:
+				Max = Q
+				action = row[3]
+				state = row[0],row[1],row[2]
+			if (i+1) % 5 == 0:
+				print 'State: {0} \nAction: {1}\nQ: {2}\n'.format(state,action,Q)
+				(action, state) = (None, None)
+				Max = float('-inf')
+
 
 if __name__=='__main__':
 	table = QTable('QTable.csv')

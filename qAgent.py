@@ -129,11 +129,9 @@ class QAgent:
 		selector = random.randint(0,4)
 		return ACTION_BANK[selector]
 
-	def getReward(self,state,action):
+	def getReward(self,state,action,dist):
 		if action == 'fire' and state.fire==1:
-			return 1000
-		elif action == 'fire' and state.fire==0:
-			return -5
+			return (1/dist)*1000
 		else:
 			return -1
 
@@ -157,10 +155,12 @@ class QAgent:
 
 	def executeVirtualAction(self,state,action):
 		success = 0
+		dist = 1
 		newState = copy.copy(state)
 		if action == 'fire':
 			if self.isSim==True:
-				if self.isHit(state):
+				(hit, dist) = self.isHit(state)
+				if hit:
 					#The target was hit
 					newState.fire= 1 	
 					print 'Target hit'
@@ -206,7 +206,7 @@ class QAgent:
 		else:
 			print 'ERROR: Action not found.'
 			return
-		return newState
+		return (newState, dist)
 
 	'''
 	The format for ssc32 commands is #<channel><command type><arguement>
@@ -229,7 +229,7 @@ class QAgent:
 	def executePhysicalAction(self,state,action):
 		newState = copy.copy(state)
 		#Not sure if I should get the state from software or query the servo controller
-		newState = self.executeVirtualAction(newState,action)
+		(newState,_) = self.executeVirtualAction(newState,action)
 		if(action== 'fire'):
 			self.ssc32.executeSingleCommand('#7H')
 			time.sleep(1)
@@ -246,7 +246,7 @@ class QAgent:
 		if self.isSim == 1:
 			return self.executeVirtualAction(state,action)
 		else:
-			return self.executePhysicalAction(state,action)
+			return (self.executePhysicalAction(state,action),1)
 
 	def softMaxSelection(self,state):
 		temperature = 0.5 # How should I set this value?
@@ -272,8 +272,14 @@ class QAgent:
 			action = self.selectAction(state)	#see function for exploration schemes
 			#take action observe outcome
 			print 'In state: {0}\nTook action: {1}'.format(state,action)
-			nextState = self.executeAction(state,action)
-			reward = self.getReward(nextState,action)
+			dist = 1
+			nextState = None
+			if action == 'fire':
+				(nextState, dist) = self.executeAction(state,action)
+			else:
+				nextState,dist = self.executeAction(state,action)
+			reward = self.getReward(nextState,action,dist)
+			print nextState
 			curQ = self.qtable.getQValue(state,action)
 			(maxQAction,maxQ) = self.qtable.getMaxQ(nextState)
 			#update old q value

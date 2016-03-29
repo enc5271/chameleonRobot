@@ -72,7 +72,7 @@ def detectCollision( baseServo,armServo, targetX,targetY,targetZ, debug=False):
     if D<1:
         #print 'Target was hit!'
         isHit = 1;
-    return isHit
+    return (isHit, D)
 
 
 if __name__=='__main__':
