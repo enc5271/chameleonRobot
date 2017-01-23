@@ -3,14 +3,16 @@ import copy
 from collections import defaultdict
 import math
 import time
+import sys, getopt
 
-#import detectCollision
-import workingPort as ssc
-import colorTracking
+
+import detectCollision
+#import workingPort as ssc
+#import colorTracking
 from QTable import *
 
 ACTION_BANK = ['left', 'right', 'up', 'down', 'fire']
-PARTITION = [[0 ,2], [1,3]]
+PARTITION = [[0 ,3, 6], [1,4,7], [2,5,8]]
 #These definitions are also defined in Turret.py
 #These are the true values
 '''
@@ -20,18 +22,19 @@ ARM_MIN = round(5*math.pi/12,5)
 ARM_MAX = round(7*math.pi/12,5)
 '''
 #These are the value for the simplified case. I should really reorganize these as class members.
-BASE_MIN = 0.837758
-BASE_MAX = 2.3
-ARM_MIN = 1.0
+BASE_MIN = 0.837758	# 48ish degrees
+BASE_MAX = 2.3		# 132 degrees
+ARM_MIN = 1.0			# 57 degrees
 ARM_MAX = 2.1416
 #Partitions per dim so 3 => 9x9 4=>4x4 etc
-NUM_PARTITIONS = 3
-ACTION_VAL = {}
+NUM_PARTITIONS = 5
+
 
 class State:
 	def __init__(self, base1,arm1,fire1,target):
 		self.base = base1
 		self.arm = arm1
+		# Fire is not actually a state but an easy way to denote if the target was hit
 		self.fire = fire1
 		self.target = target
 		
@@ -51,13 +54,15 @@ def imgHash(x, y):
 	#This is dependent on the camera
 	imgHeight = 480
 	imgWidth = 640
-	#number of img divisions
-	partitions=2
-	hashX = x/(imgWidth/partitions)
-	hashY = y/(imgHeight/partitions)
+	
+	hashX = x/(imgWidth/NUM_PARTITIONS)
+	hashY = y/(imgHeight/NUM_PARTITIONS)
 	print x,y
 	print hashX,hashY
+	# FIX - partition = xhash+yhash*5
 	return PARTITION[hashX][hashY]
+
+
 
 
 #############################################################################################
@@ -65,6 +70,7 @@ class QAgent:
 	def __init__(self,isSim1,agentType):
 		self.qtable = QTable('QTable.csv')
 		self.isSim = isSim1
+		self.actionValues = {}
 		self.initActionVal()
 		self.initState = State(self.qtable.qtable[0][0],self.qtable.qtable[0][1],0,0)
 		if self.isSim:
@@ -72,7 +78,7 @@ class QAgent:
 			self.targetRealX = None
 			self.targetRealY = None
 			self.targetRealZ = None
-			target = self.generateTarget()
+			self.initState.target = self.generateTarget()
 		else:
 			#Read target position from camera and pass to initialization state
 			(rawTargetX,rawTargetY) = colorTracking.trackGreenTarget()
@@ -82,31 +88,52 @@ class QAgent:
 		#IMPORTANT - What should these values be? They determine many things about convergence
 		self.r = 0
 		self.discount = 0.8	
-		self.learningRate = 0.2
+		self.learningRate = 0.25
 		self.personality = agentType
 		
 	def initActionVal(self):
-		baseDelta = (BASE_MAX - BASE_MIN)/NUM_PARTITIONS
-		armDelta = (ARM_MAX - ARM_MIN)/NUM_PARTITIONS
-		ACTION_VAL ={'up':armDelta, 'down':-armDelta, 'left':-baseDelta, 'right':baseDelta}
-		print ACTION_VAL
+		baseDelta = round((BASE_MAX - BASE_MIN)/NUM_PARTITIONS,5)
+		armDelta = round((ARM_MAX - ARM_MIN)/NUM_PARTITIONS, 5)
+		self.actionValues ={'up':armDelta, 'down':-armDelta, 'left':-baseDelta, 'right':baseDelta}
 
-	def generateTarget(self):
+	def generateTarget(self,debug=False):
 		random.seed()
-		#known to work [22 13 20] x y z
-		self.targetRealX = random.uniform(0,55)
-		self.targetRealY = random.uniform(0,35)
-		self.targetRealZ = random.uniform(0,20)
-		xPartition = int(self.targetRealX / 28)
-		yPartition = int(self.targetRealY / 18)
+		
+		#idk why a second partition is made for virtual...
+		#virtualPartition = [[6 ,3, 0], [7,4,1], [8,5,2]]
+
+		'''
+		#Original target parameters. I think it is generating too many impossible to hit targets
+		self.targetRealX = random.uniform(0,60)
+		self.targetRealY = random.uniform(20,40)
+		self.targetRealZ = random.uniform(0,40)
+		'''
+		#I decreased the upper limit of target generation 
+		self.targetRealX = random.uniform(10,50)
+		self.targetRealY = random.uniform(20,40)
+		self.targetRealZ = random.uniform(20,40)
+
+		xPartition = int(math.floor(self.targetRealX / (60.0/NUM_PARTITIONS)))
+		yPartition = int(math.floor(self.targetRealY/ (40.0/NUM_PARTITIONS)))
+		print xPartition
+		print yPartition
+		
 		print 'Target: {0} {1} {2}'.format(self.targetRealX,self.targetRealY,self.targetRealZ)
-		target = PARTITION[xPartition][yPartition]
+		target = xPartition+yPartition*5
+		print target
+		if debug:
+			import matplotlib.pyplot as plt
+			plt.scatter(self.targetRealX,self.targetRealY)
+			plt.xlim(0,60)
+			plt.ylim(0,40)
+			plt.grid(True)
+			plt.show()
 		return target
 
 	def isHit(self,state):
-		print state
+		#print state
 		if self.isSim==True:
-			return self.matlabEng.detectCollision(state.base,state.arm,self.targetRealX,self.targetRealY,self.targetRealZ)
+			return detectCollision.detectCollision(state.base,state.arm,self.targetRealX,self.targetRealY,self.targetRealZ,debug=True)
 		else:
 			while (1):
 				ans = input('Enter 1 if target was hit else enter 0:\n')
@@ -121,11 +148,11 @@ class QAgent:
 		selector = random.randint(0,4)
 		return ACTION_BANK[selector]
 
-	def getReward(self,state):
-		if state.fire==1:
-			return 100
+	def getReward(self,state,action,dist):
+		if action == 'fire' and state.fire==1:
+			return (1/dist)*1000
 		else:
-			return 0
+			return -1
 
 	def greedyAction(self,state):
 		return self.qtable.getMaxQ(state)[0]
@@ -147,58 +174,58 @@ class QAgent:
 
 	def executeVirtualAction(self,state,action):
 		success = 0
+		dist = 1
 		newState = copy.copy(state)
-		action = action.split('_') #check that this remove the under score and returns the action descriptor and degrees
-		if action[0] == 'base':
-			angleChange = float(action[1])
-			newAngle = (state.base + angleChange)
-			if BASE_MIN  <= newAngle <= BASE_MAX:
-				newState.base = newAngle
-
-		elif action[0] =='arm':
-			angleChange = float(action[1])
-			newAngle = (state.arm + angleChange)
-			if ARM_MIN  <= newAngle <= ARM_MAX:
-				newState.arm = newAngle
-		elif action[0] == 'fire':
+		if action == 'fire':
 			if self.isSim==True:
-				if self.isHit(state):
+				(hit, dist) = self.isHit(state)
+				if hit:
 					#The target was hit
 					newState.fire= 1 	
+					print 'Target hit'
+					#time.sleep(0.2)
 				else:
 					#missed the target
 					newState.fire=0
 			else:
 				newState.fire = 0 	
-		elif action[0]=='up':
-			if state.arm == ARM_MAX:
+		elif action =='up':
+			delta = self.actionValues['up']
+			newArm = round(newState.arm + delta,5) 
+			if newArm >= ARM_MAX:
 				#keep same value
 				newState.arm =newState.arm
-			elif state.arm < ARM_MAX:
-				delta = ACTION_VAL['up']
-				newState.arm = newState.ar, + delta 
-		elif action[0]=='down':
-			if state.arm == ARM_MIN:
+			else:
+				newState.arm = newArm
+				
+		elif action =='down':
+			delta = self.actionValues['down']
+			newArm = round(newState.arm + delta,5) 
+			if newArm <= ARM_MIN:
 				newState.arm =newState.arm
-			elif state.arm > ARM_MIN:
-				delta = ACTION_VAL['down']
-				newState.arm = newState.arm + delta 
-		elif action[0]=='left':
-			if state.base == BASE_MIN:
+			else:
+				newState.arm=newArm
+				
+		elif action =='left':
+			delta = self.actionValues['left']
+			newBase = round(newState.base + delta,5)
+			if newBase <= BASE_MIN:
 				newState.base =newState.base
-			elif state.base > BASE_MIN:
-				delta = ACTION_VAL['left']
-				newState.base = newState.base + delta 
-		elif action[0]=='right':
-			if state.base == BASE_MAX:
+			else:
+				newState.base = newBase
+				
+		elif action =='right':
+			delta = self.actionValues['right']
+			newBase = round(newState.base + delta,5)
+			if newBase >= BASE_MAX:
 				newState.base =newState.base
-			elif state.base < BASE_MAX:
-				delta = ACTION_VAL['right']
-				newState.base = newState.base + delta
+			else:
+				newState.base = newBase
+				
 		else:
 			print 'ERROR: Action not found.'
 			return
-		return newState
+		return (newState, dist)
 
 	'''
 	The format for ssc32 commands is #<channel><command type><arguement>
@@ -221,7 +248,7 @@ class QAgent:
 	def executePhysicalAction(self,state,action):
 		newState = copy.copy(state)
 		#Not sure if I should get the state from software or query the servo controller
-		newState = self.executeVirtualAction(newState,action)
+		(newState,_) = self.executeVirtualAction(newState,action)
 		if(action== 'fire'):
 			self.ssc32.executeSingleCommand('#7H')
 			time.sleep(1)
@@ -238,7 +265,16 @@ class QAgent:
 		if self.isSim == 1:
 			return self.executeVirtualAction(state,action)
 		else:
-			return self.executePhysicalAction(state,action)
+			return (self.executePhysicalAction(state,action),1)
+
+	def softMaxSelection(self,state):
+		temperature = 0.5 # How should I set this value?
+		total = 0
+		for a in ACTION_BANK:
+			total = total + exp(self.qtable.getQValue(state,a)/temperature)
+		softMaxList = []
+		for a in ACTION_BANK:
+			softMaxList.append( a, exp(self.qtable.getQValue(state,a)/temperature)/total )
 
 	#targetZ is depth and only used for the simulation
 	def qLearning(self,maxIterations,startState=''):
@@ -248,35 +284,84 @@ class QAgent:
 			state = startState
 		iterations = 0
 		while (not(state.fire) and iterations<maxIterations):
-			#get new target position
-			(rawTargetX,rawTargetY) = colorTracking.trackGreenTarget()
-			state.target=imgHash(rawTargetX,rawTargetY)
+			if not self.isSim:
+				#gets new target position from camera, and returns the center of the largest green blob.
+				(rawTargetX,rawTargetY) = colorTracking.trackGreenTarget()
+				#
+				state.target=imgHash(rawTargetX,rawTargetY)
 			action = self.selectAction(state)	#see function for exploration schemes
 			#take action observe outcome
 			print 'In state: {0}\nTook action: {1}'.format(state,action)
-			nextState = self.executeAction(state,action)
-			reward = self.getReward(nextState)
+			dist = 1
+			nextState = None
+			if action == 'fire':
+				(nextState, dist) = self.executeAction(state,action)
+			else:
+				nextState,dist = self.executeAction(state,action)
+			reward = self.getReward(nextState,action,dist)
+			print nextState
 			curQ = self.qtable.getQValue(state,action)
 			(maxQAction,maxQ) = self.qtable.getMaxQ(nextState)
-			#update old q value
+			#update old q value. THIS SHOULD NOT BE DONE FOR EXPLORATORY STEPS!!!
 			newQ = curQ + self.learningRate*(reward + self.discount*maxQ - curQ)
 			self.qtable.setQValue(state,action,newQ)
 			state = nextState
 			iterations = iterations + 1
 		if(state.fire):
 			print 'Target was hit in state {0} on iteration {1}'.format(state,iterations)
+			#time.sleep(.5)
 		self.qtable.writeTable();
 
 ########################################################################################
-#	Main #
 
-agent = QAgent(False,'balanced')
-agent.qLearning(10)
+def runTrainingSession(maxIter,numSessions):
+	for i in range(numSessions):
+		agent = QAgent(True,'greedy')
+		agent.qLearning(maxIter)
+
+def runTest():
+	agent = QAgent(True,'balanced')
+	agent.generateTarget()
+'''
+if __name__ == '__main__':
+	runTest()
+
+'''
+#	Main #
+if __name__ == '__main__':
+	argue = sys.argv[1:]
+	isSim = True
+	maxIter=0
+	numSessions = 0
+	debug = False
+	try:
+		opts, args = getopt.getopt(argue,"i:t:r:",['maxIter=','sess=','whateva'])
+	except getopt.GetoptError:
+		print 'QAgent.py -i <maxIterations> -t <numSessions> -r <runPhysicalTrial?>'
+	for opt, arg in opts:
+		if opt in ('-i'):
+			maxIter = arg
+		elif opt == '-t':
+			numSessions = arg
+		elif opt == '-r':
+			isSim = False
+		elif opt =='-d':
+			debug = True
+	if debug:
+		runTest()
+	elif isSim:
+		maxIter = int(maxIter)
+		numSessions = int(numSessions)	
+		runTrainingSession(maxIter,numSessions)
+	else:
+		maxIter = int(maxIter)
+		agent = QAgent(False,'greedy')
+		agent.qLearning(maxIter)
+
+
+
 
 #TO DO
 '''
-Not sure if the below thing needs to be done???
-Map targets actual position to pixels
-		focalD = 25;
-		Projected = [1,0,0,0;0,1,0,0;0,0,-1/focalD,0]*targets(1)
+Implement some kind of interpolation to smooth actions and striking
 '''
