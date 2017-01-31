@@ -50,17 +50,25 @@ class Experiment:
 			json.dump(self.episodeData,f)
 	#show total reward for each episode.
 	def experimentVisualizations(self):
-		print self.episodeData
-		data = []
+		#print self.episodeData
+		x = []
+		y = []
+		totalReward = 0.0
 		for index, episode in enumerate(self.episodeData):
-			data.append((index,episode['cumulativeReward']))
-		print data[:][0]
+			print episode['cumulativeReward']
+			x.append(index)
+			episodicReward = episode['cumulativeReward']
+			totalReward = totalReward + episodicReward
+			y.append(totalReward)
 		#episodeNumber = self.episodeData[:,0]
 		#reward = self.episodeData[:,1]
 
 		fig = plt.figure()
-		plt.plot(data[:,0],data[:,1])
-		plt.show()		
+		plt.plot(x, y)
+		plt.title('Total Reward over Time')
+		plt.xlabel('Episodes Seen')
+		plt.ylabel('Total Reward')
+		plt.show()
 
 #handles command line arguements.
 def main():
@@ -100,7 +108,7 @@ def main():
 
 def run():
 	exp = Experiment()
-	exp.runExperiment(20,1)
+	exp.runExperiment(20,1000)
 	exp.experimentVisualizations()
 
 if __name__ == '__main__':
