@@ -1,6 +1,7 @@
 import qAgent
 import json
 import os
+import matplotlib.pyplot as plt
 
 class Experiment:
 	def __init__(self):
@@ -36,7 +37,7 @@ class Experiment:
 
 	def loadExperimentData(self):
 		with open(self.filepath+'metaData.json','r') as f:
-			metaData = json.load(f)
+			self.metaData = json.load(f)
 
 		with open(self.filepath+'episodes.json','r') as f:
 			self.episodeData = json.load(f)
@@ -47,7 +48,19 @@ class Experiment:
 
 		with open(self.filepath+'episodes.json','w') as f:
 			json.dump(self.episodeData,f)
-		
+	#show total reward for each episode.
+	def experimentVisualizations(self):
+		print self.episodeData
+		data = []
+		for index, episode in enumerate(self.episodeData):
+			data.append((index,episode['cumulativeReward']))
+		print data[:][0]
+		#episodeNumber = self.episodeData[:,0]
+		#reward = self.episodeData[:,1]
+
+		fig = plt.figure()
+		plt.plot(data[:,0],data[:,1])
+		plt.show()		
 
 #handles command line arguements.
 def main():
@@ -82,9 +95,13 @@ def main():
 
 
 
+
+
+
 def run():
 	exp = Experiment()
-	exp.runExperiment(20,1000)
+	exp.runExperiment(20,1)
+	exp.experimentVisualizations()
 
 if __name__ == '__main__':
 	#uncomment after running tests
