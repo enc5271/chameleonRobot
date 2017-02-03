@@ -268,7 +268,7 @@ class QAgent:
 			softMaxList.append( a, exp(self.qtable.getQValue(state,a)/temperature)/total )
 
 	#targetZ is depth and only used for the simulation
-	def qLearning(self,maxIterations):
+	def qLearning(self,maxIterations,debug=False):
 		state = self.initState()
 		iterations = 0
 		cumulativeReward = 0.0
@@ -280,8 +280,8 @@ class QAgent:
 				state.target=imgHash(rawTargetX,rawTargetY)
 			action = self.selectAction(state)	#see function for exploration schemes
 			#take action observe outcome
-			print 'In state: {0}\nTook action: {1}'.format(state,action)
-			#what is this?
+			#print 'In state: {0}\nTook action: {1}'.format(state,action)
+			#the distance between the affector end and the target can be used to scale the reward received.
 			dist = 1
 			nextState = None
 			if action == 'fire':

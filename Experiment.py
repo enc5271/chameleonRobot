@@ -13,6 +13,8 @@ class Experiment:
 			self.loadExperimentData()
 		self.agent = qAgent.QAgent(True,'balanced')
 
+
+
 	def initNewExperiment(self):
 		qAgent.QTable.QTable()
 		self.initMetaData()
@@ -32,6 +34,7 @@ class Experiment:
 
 	def runExperiment(self,maxIter,numEpisodes):
 		for i in range(numEpisodes):
+			print 'Episode',i
 			self.runEpisode(maxIter)
 		self.saveExperimentData()
 
@@ -101,14 +104,9 @@ def main():
 		agent = QAgent(False,'greedy')
 		agent.qLearning(maxIter)
 
-
-
-
-
-
 def run():
 	exp = Experiment()
-	exp.runExperiment(20,1000)
+	exp.runExperiment(20,10000)
 	exp.experimentVisualizations()
 
 if __name__ == '__main__':
