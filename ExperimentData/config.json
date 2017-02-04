@@ -1,0 +1,8 @@
+{"Experiment":{
+	"actions" : ["left", "right", "up", "down", "fire"],
+	"base_min" : 0.837758,
+	"base_max" : 2.3,
+	"arm_min" : 1.0,
+	"arm_max" : 2.1416,
+	"partitions" : 5
+}}

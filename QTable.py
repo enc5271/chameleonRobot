@@ -1,6 +1,7 @@
 import csv
 import math
 import pandas as pd
+from State import State
 
 ACTION_BANK = ['left', 'right', 'up', 'down', 'fire']
 #These definitions are also defined in qAgent.py
@@ -95,11 +96,11 @@ class QTable():
 	def getRandomState(self, target=None):
 		if target ==None:
 			qRow = self.qtable.sample(n=1)
-			return qRow.base,qRow.arm,qRow.target
+			return State(qRow.base,qRow.arm,0,qRow.target)
 		else:
 			qRow =self.qtable[self.qtable['target']==target]
 			randRow = qRow.sample(n=1)
-			return randRow.base.item(), randRow.arm.item(), randRow.target.item()
+			return State(randRow.base.item(), randRow.arm.item(),0, randRow.target.item())
 	def incrementFreq(self,state,action1):
 		hashcode = self.getStateHashCode(state)
 		qRow = self.qtable[(self.qtable['hashcode']==hashcode) & (self.qtable['action']==action1)]

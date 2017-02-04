@@ -2,19 +2,40 @@ import qAgent
 import json
 import os
 import matplotlib.pyplot as plt
+from SimulationEnvironment import SimulationEnvironment
+from PhysicalEnvironment import PhysicalEnvironment
 
 class Experiment:
-	def __init__(self):
+	def __init__(self,isSimulation):
 		self.filepath = './ExperimentData/'
+		#if no data in ExperimentData create new Qtable and metadata
 		if os.listdir(self.filepath)==[]:
 			self.initMetaData()
 			self.saveExperimentData()
 		else:
 			self.loadExperimentData()
+		#Initialize experiment parameters from the config file.
+		self.loadExperimentParameters()
+		#create a simulation or physical environment class
+		if isSimulation:
+			self.environment = SimulationEnvironment(self.NUM_PARTITIONS)
+		else:
+			self.environment = PhysicalEnvironment(self.NUM_PARTITIONS)
+		#create agent type
 		self.agent = qAgent.QAgent(True,'balanced')
 
-
-
+	#reads from config file './ExperimentData/config.json'. This determines the actions,
+	# the number of partitions, and the constraints on servo angles.
+	def loadExperimentParameters(self):
+		with open(self.filepath+'config.json','r') as f:
+			parameters = json.load(f)
+			self.ACTIONS = parameters['Experiment']['actions']
+			self.BASE_MIN = parameters['Experiment']['base_min']
+			self.BASE_MAX = parameters['Experiment']['base_max']
+			self.ARM_MIN = parameters['Experiment']['arm_min']
+			self.ARM_MAX = parameters['Experiment']['arm_max']
+			self.NUM_PARTITIONS = parameters['Experiment']['partitions']
+	#creates a new qtable, episodedata, and metadata files.
 	def initNewExperiment(self):
 		qAgent.QTable.QTable()
 		self.initMetaData()
@@ -28,9 +49,27 @@ class Experiment:
 		episodenum = len(self.episodeData)
 		self.episodeData.append({'episode':episodenum, 'cumulativeReward':reward, 'iterations':iterations})
 
+	def learn(self,state):
+		action = self.agent.selectAction(state)
+		#This returns a new state as a result of taking the given action.
+		outcomeState,_ = self.environment.executeAction(state,action)
+		#reward the new state. actions must be passed to evaluate striking rewards.
+		reward = self.environment.getReward(outcomeState,action)
+		#Used to measure convergence to optimal policy.
+		cumulativeReward = cumulativeReward+reward
+		#increment frequency, and update qvalues
+		self.agent.update(state,action,reward)
+		return outcomeState
 	def runEpisode(self, maxIter):
-		cumulativeReward,iterations = self.agent.qLearning(maxIter)
-		self.appendEpisodeData(cumulativeReward,iterations)
+		#This only allows for a stationary target seeded at the beginning of an episode. 
+		target = self.environment.getTarget()
+		state = self.agent.getRandomState(target)
+		print state
+		i=0
+		cumulativeReward=0
+		for i in range(maxIter):
+			state=self.learn(state)
+		self.appendEpisodeData(cumulativeReward,i)
 
 	def runExperiment(self,maxIter,numEpisodes):
 		for i in range(numEpisodes):
@@ -105,8 +144,8 @@ def main():
 		agent.qLearning(maxIter)
 
 def run():
-	exp = Experiment()
-	exp.runExperiment(20,10000)
+	exp = Experiment(True)
+	exp.runExperiment(20,1)
 	exp.experimentVisualizations()
 
 if __name__ == '__main__':
