@@ -1,6 +1,7 @@
 import qAgent
 import json
 import os
+import math
 import matplotlib.pyplot as plt
 from SimulationEnvironment import SimulationEnvironment
 from PhysicalEnvironment import PhysicalEnvironment
@@ -91,7 +92,7 @@ class Experiment:
 		with open(self.filepath+'episodes.json','w') as f:
 			json.dump(self.episodeData,f)
 	#show total reward for each episode.
-	def experimentVisualizations(self):
+	def plotCumulativeReward(self):
 		#print self.episodeData
 		x = []
 		y = []
@@ -107,10 +108,56 @@ class Experiment:
 
 		fig = plt.figure()
 		plt.plot(x, y)
+		plt.grid(True)
 		plt.title('Total Reward over Time')
 		plt.xlabel('Episodes Seen')
 		plt.ylabel('Total Reward')
 		plt.show()
+
+	def plotAll(self):
+		plt.subplots_adjust(hspace=0.4)
+		x = []
+		y = []
+		y2 =[]
+		totalReward = 0.0
+		for index, episode in enumerate(self.episodeData):
+			print episode['cumulativeReward']
+			x.append(index)
+			episodicReward = episode['cumulativeReward']
+			y2.append(episodicReward)
+			totalReward = totalReward + (episodicReward)
+			y.append(totalReward)
+		#episodeNumber = self.episodeData[:,0]
+		#reward = self.episodeData[:,1]
+
+		plt.subplot(211)
+		plt.plot(x, y)
+		plt.title('Logarithmic Total Reward over Time')
+		plt.xlabel('Episodes Seen')
+		plt.ylabel('Log of Total Reward')
+		plt.grid(True)
+
+		plt.subplot(212)
+		plt.semilogy(x, y)
+		plt.title('Total Reward over Time')
+		plt.xlabel('Episodes Seen')
+		plt.ylabel('Total Reward')
+		plt.grid(True)
+				
+		plt.subplot(221)
+		plt.plot(x, y2)
+		plt.title('Reward per Episode')
+		plt.xlabel('Episodes Seen')
+		plt.ylabel('Reward')
+		plt.grid(True)
+
+		plt.subplot(222)
+		plt.semilogy(x, y2)
+		plt.title('Reward per Episode')
+		plt.xlabel('Episodes Seen')
+		plt.ylabel('Log Reward')
+		plt.grid(True)
+		plt.show()		
 
 #handles command line arguements.
 def main():
@@ -146,9 +193,15 @@ def main():
 def run():
 	exp = Experiment(True)
 	exp.runExperiment(20,1)
-	exp.experimentVisualizations()
+	exp.plotCumulativeReward()
+
+#temporary function to show dr.shell
+def demo():
+	exp = Experiment(True)
+	#exp.plotAll()
+	exp.plotCumulativeReward()
 
 if __name__ == '__main__':
 	#uncomment after running tests
 	#main()
-	run()
+	demo()
